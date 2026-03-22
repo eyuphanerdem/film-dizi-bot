@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import logging
 from telegram import Update
@@ -26,17 +27,7 @@ async def get_exchange_rates():
     rates = {}
     
     try:
-        # API 1: Döviz kurları - exchangerate-api.com
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://api.exchangerate-api.com/v4/latest/USD') as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    rates['usd_try'] = data['rates'].get('TRY', 'N/A')
-    except Exception as e:
-        logger.error(f"API hatası (Döviz): {e}")
-    
-    try:
-        # API 2: Türkiye Merkez Bankası API - Döviz kurları
+        # API 1: Türkiye Merkez Bankası API - Döviz kurları
         async with aiohttp.ClientSession() as session:
             async with session.get('https://www.tcmb.gov.tr/kurlar/today.xml') as resp:
                 if resp.status == 200:
@@ -46,7 +37,6 @@ async def get_exchange_rates():
                     
                     for currency in root.findall('.//Currency'):
                         code = currency.get('Kod')
-                        unit_elem = currency.find('Unit')
                         selling_elem = currency.find('Selling')
                         
                         if code == 'USD' and selling_elem is not None:
@@ -55,9 +45,11 @@ async def get_exchange_rates():
                             rates['eur_try'] = float(selling_elem.text.replace(',', '.'))
     except Exception as e:
         logger.error(f"TCMB API hatası: {e}")
+        rates['usd_try'] = 'N/A'
+        rates['eur_try'] = 'N/A'
     
     try:
-        # API 3: Kripto - Bitcoin ve Ethereum
+        # API 2: Kripto - Bitcoin ve Ethereum
         async with aiohttp.ClientSession() as session:
             async with session.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd') as resp:
                 if resp.status == 200:
@@ -72,9 +64,13 @@ async def get_exchange_rates():
                         rates['eth_try'] = rates['eth_usd'] * rates['usd_try']
     except Exception as e:
         logger.error(f"Kripto API hatası: {e}")
+        rates['btc_usd'] = 'N/A'
+        rates['eth_usd'] = 'N/A'
+        rates['btc_try'] = 'N/A'
+        rates['eth_try'] = 'N/A'
     
     try:
-        # API 4: Emtia - Altın ve Petrol
+        # API 3: Emtia - Altın ve Petrol
         async with aiohttp.ClientSession() as session:
             # Metals.live API - Altın (gram, USD)
             async with session.get('https://api.metals.live/v1/spot/gold') as resp:
@@ -97,12 +93,16 @@ async def get_exchange_rates():
                         rates['oil_try'] = oil_usd * rates['usd_try']
     except Exception as e:
         logger.error(f"Emtia API hatası: {e}")
+        rates['gold_usd'] = 'N/A'
+        rates['oil_usd'] = 'N/A'
+        rates['gold_try'] = 'N/A'
+        rates['oil_try'] = 'N/A'
     
     return rates
 
 def format_message(rates):
     """
-    Kur verilerini güzel ve emojili bir mesaja dönüştürür
+    Kur verilerini güzel bir mesaja dönüştürür
     """
     usd_try = rates.get('usd_try', 'N/A')
     eur_try = rates.get('eur_try', 'N/A')
@@ -113,32 +113,32 @@ def format_message(rates):
     # Sayıları güzel formatlama
     def format_price(price):
         if isinstance(price, (int, float)):
-            return f"₺{price:,.2f}".replace(',', '.')
+            return f"TRY {price:,.2f}".replace(',', '.')
         return 'N/A'
     
     message = f"""
-╔═══════════════════════════════════╗
-║  💰 DÖVIZ & EMTİA KURU SİSTEMİ 💰  ║
-║      {datetime.now().strftime('%d.%m.%Y %H:%M')}        ║
-╚═══════════════════════════════════╝
+==================================
+  DOVIZ VE EMTIA KURU SISTEMI
+  {datetime.now().strftime('%d.%m.%Y %H:%M')}
+==================================
 
-📈 DÖVİZ KURLAR (1 Birim = TRY)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🇺🇸 Dolar (USD)     → {format_price(usd_try)}
-🇪🇺 Euro (EUR)      → {format_price(eur_try)}
+DOVIZ KURLAR (1 Birim = TRY)
+----------------------------------
+USD Dolar       : {format_price(usd_try)}
+EUR Euro        : {format_price(eur_try)}
 
-💎 EMTİA FIYATLARI (TRY)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 Altın (gram)     → {format_price(gold_try)}
-⛽ Petrol (varil)   → {format_price(oil_try)}
+EMTIA FIYATLARI (TRY)
+----------------------------------
+Altin (gram)    : {format_price(gold_try)}
+Petrol (varil)  : {format_price(oil_try)}
 
-🪙 KRİPTOPARALAR (TRY)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-₿ Bitcoin (1 BTC)   → {format_price(btc_try)}
+KRIPTOPARA (TRY)
+----------------------------------
+Bitcoin (1 BTC) : {format_price(btc_try)}
 
-═════════════════════════════════════
-✨ Son Güncelleme: {datetime.now().strftime('%H:%M:%S')} ✨
-═════════════════════════════════════
+==================================
+Son Guncelleme: {datetime.now().strftime('%H:%M:%S')}
+==================================
 """
     return message
 
@@ -147,15 +147,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     /start komutu - Bota hoşgeldin mesajı
     """
     welcome_message = """
-🤖 Döviz Kuru Botu'na Hoşgeldiniz!
+DOVIZ KURU BOTUNA HOSGELDINIZ!
 
-Bu bot her saat başı Döviz, Emtia ve Kripto para kurlarını gösterir.
+Bu bot her saat basi Doviz, Emtia ve Kripto para kurlarini gosterir.
 
-📋 Komutlar:
-/fiyat - Anlık kurları göster
-/start - Bu mesajı göster
+KOMUTLAR:
+/fiyat - Anlik kurlari goster
+/start - Bu mesaji goster
 
-⏰ Otomatik Güncelleme: Her saat başı
+OTOMATIK GUNCELLEME: Her saat basi
     """
     await update.message.reply_text(welcome_message)
 
@@ -174,7 +174,7 @@ async def fiyat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(message)
     except Exception as e:
         logger.error(f"Komut hatası: {e}")
-        await update.message.reply_text("❌ Kurlar alınırken bir hata oluştu. Lütfen daha sonra tekrar deneyin.")
+        await update.message.reply_text("Hata: Kurlar alinirken bir sorun olustu. Lutfen daha sonra tekrar deneyin.")
 
 async def send_hourly_message(context: ContextTypes.DEFAULT_TYPE):
     """
@@ -190,9 +190,9 @@ async def send_hourly_message(context: ContextTypes.DEFAULT_TYPE):
         # context.job.chat_id'den grup ID'si al ve mesaj gönder
         chat_id = context.job.chat_id
         await context.bot.send_message(chat_id=chat_id, text=message)
-        logger.info(f"Saatlik mesaj gönderildi - Chat ID: {chat_id}")
+        logger.info(f"Saatlik mesaj gonderildi - Chat ID: {chat_id}")
     except TelegramError as e:
-        logger.error(f"Telegram mesaj gönderme hatası: {e}")
+        logger.error(f"Telegram mesaj gonderme hatası: {e}")
     except Exception as e:
         logger.error(f"Saatlik mesaj hatası: {e}")
 
@@ -212,14 +212,14 @@ async def post_init(application: Application):
     )
     
     scheduler.start()
-    logger.info("Scheduler başlatıldı - Her saat başı mesaj gönderilecek")
+    logger.info("Scheduler baslatildi - Her saat basi mesaj gonderilecek")
 
 def main():
     """
     Bot'u başlat
     """
     if not TOKEN:
-        raise ValueError("TELEGRAM_TOKEN çevre değişkeni ayarlanmamış!")
+        raise ValueError("TELEGRAM_TOKEN cevre degiskeni ayarlanmamis!")
     
     # Application oluştur
     application = Application.builder().token(TOKEN).build()
@@ -232,69 +232,8 @@ def main():
     application.post_init = post_init
     
     # Bot'u başlat
-    logger.info("Bot başlanıyor...")
+    logger.info("Bot baslanıyor...")
     application.run_polling()
 
 if __name__ == '__main__':
     main()
-```
-
-**Adım 6:** En altta **"Commit new file"** butonuna tıkla ✅
-
----
-
-## **DOSYA 2: requirements.txt** 📦
-
-**Adım 1:** Tekrar **"Add file"** → **"Create new file"** tıkla
-
-**Adım 2:** Dosya adını yaz:
-```
-requirements.txt
-```
-
-**Adım 3:** Aşağıdaki kodu KOPYALA VE YAPIŞTUR:
-```
-python-telegram-bot==21.1
-aiohttp==3.9.1
-APScheduler==3.10.4
-```
-
-**Adım 4:** **"Commit new file"** tıkla ✅
-
----
-
-## **DOSYA 3: Procfile** 🚀
-
-**Adım 1:** Tekrar **"Add file"** → **"Create new file"** tıkla
-
-**Adım 2:** Dosya adını yaz:
-```
-Procfile
-```
-
-**Adım 3:** Aşağıdaki kodu KOPYALA VE YAPIŞTUR:
-```
-worker: python bot.py
-```
-
-**Adım 4:** **"Commit new file"** tıkla ✅
-
----
-
-## **DOSYA 4: .gitignore** 🔒
-
-**Adım 1:** Tekrar **"Add file"** → **"Create new file"** tıkla
-
-**Adım 2:** Dosya adını yaz:
-```
-.gitignore
-```
-
-**Adım 3:** Aşağıdaki kodu KOPYALA VE YAPIŞTUR:
-```
-.env
-__pycache__/
-*.pyc
-*.pyo
-venv/
-.DS_Store
