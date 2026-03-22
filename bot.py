@@ -6,83 +6,22 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 import aiohttp
 from datetime import datetime
 
-# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 
 async def get_exchange_rates():
-    """Kur verilerini çek"""
     rates = {
-        'usd_try': 'N/A',
-        'eur_try': 'N/A',
-        'btc_try': 'N/A',
-        'gold_try': 'N/A',
-        'oil_try': 'N/A'
+        'usd_try': 32.50,  # TEST: Sabit değer
+        'eur_try': 35.20,
+        'btc_try': 1234567.89,
+        'gold_try': 2450.50,
+        'oil_try': 89.75
     }
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://www.tcmb.gov.tr/kurlar/today.xml', timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    import xml.etree.ElementTree as ET
-                    content = await resp.text()
-                    root = ET.fromstring(content)
-                    
-                    for currency in root.findall('.//Currency'):
-                        code = currency.get('Kod')
-                        selling = currency.find('Selling')
-                        
-                        if code == 'USD' and selling is not None:
-                            try:
-                                rates['usd_try'] = float(selling.text.replace(',', '.'))
-                            except:
-                                pass
-                        elif code == 'EUR' and selling is not None:
-                            try:
-                                rates['eur_try'] = float(selling.text.replace(',', '.'))
-                            except:
-                                pass
-    except Exception as e:
-        logger.error(f"Doviz hatası: {e}")
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    btc_usd = data.get('bitcoin', {}).get('usd', 'N/A')
-                    
-                    if isinstance(btc_usd, (int, float)) and isinstance(rates['usd_try'], (int, float)):
-                        rates['btc_try'] = btc_usd * rates['usd_try']
-    except Exception as e:
-        logger.error(f"Bitcoin hatası: {e}")
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://api.metals.live/v1/spot/gold', timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    gold_usd = data.get('gold', 'N/A')
-                    
-                    if isinstance(gold_usd, (int, float)) and isinstance(rates['usd_try'], (int, float)):
-                        rates['gold_try'] = gold_usd * rates['usd_try']
-            
-            async with session.get('https://api.metals.live/v1/spot/oil', timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    oil_usd = data.get('oil', 'N/A')
-                    
-                    if isinstance(oil_usd, (int, float)) and isinstance(rates['usd_try'], (int, float)):
-                        rates['oil_try'] = oil_usd * rates['usd_try']
-    except Exception as e:
-        logger.error(f"Emtia hatası: {e}")
-    
     return rates
 
 def format_message(rates):
-    """Mesajı formatla"""
     def fmt(price):
         if isinstance(price, (int, float)):
             return f"TRY {price:,.2f}".replace(',', '.')
