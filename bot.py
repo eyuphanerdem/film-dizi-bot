@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 import aiohttp
 from datetime import datetime
+import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,23 +23,20 @@ async def get_exchange_rates():
     }
     
     try:
-        # TCMB API - Döviz Kurları
+        # ExchangeRate-API - Döviz (USD bazında)
         async with aiohttp.ClientSession() as session:
-            async with session.get('https://www.tcmb.gov.tr/kurlar/today.xml', timeout=aiohttp.ClientTimeout(total=5)) as resp:
+            async with session.get('https://api.exchangerate-api.com/v4/latest/USD', timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
-                    import xml.etree.ElementTree as ET
-                    content = await resp.text()
-                    root = ET.fromstring(content)
+                    data = await resp.json()
+                    usd_try = data.get('rates', {}).get('TRY')
+                    eur_usd = data.get('rates', {}).get('EUR')
                     
-                    for currency in root.findall('.//Currency'):
-                        code = currency.get('Kod')
-                        selling = currency.find('Selling')
-                        if code == 'USD' and selling is not None:
-                            rates['usd_try'] = float(selling.text.replace(',', '.'))
-                        elif code == 'EUR' and selling is not None:
-                            rates['eur_try'] = float(selling.text.replace(',', '.'))
+                    if usd_try:
+                        rates['usd_try'] = usd_try
+                    if eur_usd and usd_try:
+                        rates['eur_try'] = eur_usd * usd_try
     except Exception as e:
-        logger.error(f"TCMB API hatası: {e}")
+        logger.error(f"Döviz API hatası: {e}")
     
     try:
         # CoinGecko - Bitcoin
