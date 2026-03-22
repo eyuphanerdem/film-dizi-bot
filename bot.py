@@ -17,9 +17,12 @@ async def get_news():
     try:
         async with aiohttp.ClientSession() as session:
             url = f'https://newsapi.org/v2/top-headlines?country=tr&language=tr&sortBy=publishedAt&apiKey={NEWS_API_KEY}'
+            logger.info(f"API URL: {url}")
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                logger.info(f"API Status: {resp.status}")
+                data = await resp.json()
+                logger.info(f"API Response: {data}")
                 if resp.status == 200:
-                    data = await resp.json()
                     articles = data.get('articles', [])[:5]  # Son 5 haber
                     return articles
     except Exception as e:
