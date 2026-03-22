@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
+USER_ID = 8162765467  # Senin User ID'n
 
 # Örnek Film ve Dizi Verileri
 FILMLER = [
@@ -54,6 +55,18 @@ FILMLER = [
         'year': 1999,
         'rating': 8.7,
         'description': 'Bir hacker gerçekliğin doğası ve insan özgürlüğü hakkında hakikat öğrenir.'
+    },
+    {
+        'title': 'Gladiator',
+        'year': 2000,
+        'rating': 8.5,
+        'description': 'Bir Roma generali, çiftçi olarak satılmış ve gladyatör olarak yükselmek için savaşır.'
+    },
+    {
+        'title': 'Parasite',
+        'year': 2019,
+        'rating': 8.6,
+        'description': 'Fakir bir aile, zengin bir ailenin evine infiltre olmaya çalışır.'
     }
 ]
 
@@ -99,6 +112,18 @@ DIZILER = [
         'year': 2016,
         'rating': 8.5,
         'description': 'Yapay akıllı robotların olduğu bir tema parkında insanlar ve makineler çatışır.'
+    },
+    {
+        'title': 'The Mandalorian',
+        'year': 2019,
+        'rating': 8.7,
+        'description': 'Star Wars evreninde bir ödül avcısı ve bulmaca bir çocuğun maceraları.'
+    },
+    {
+        'title': 'Chernobyl',
+        'year': 2019,
+        'rating': 9.3,
+        'description': 'Çernobil nükleer felaketinin gerçek hikayesi ve sonrasındaki mücadele.'
     }
 ]
 
@@ -130,15 +155,22 @@ def format_movie_message(movie, movie_type="Film"):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start komutu"""
-    user_id = update.effective_user.id
-    logger.info(f"User ID: {user_id}")
-    
     await update.message.reply_text(
         "🎬 Film/Dizi Önerisi Botu'na hoş geldiniz!\n\n"
         "/film - Günün film önerisi\n"
         "/dizi - Günün dizi önerisi\n\n"
         "Her 3 saatte bir otomatik öneriler alacaksınız!"
     )
+    
+    # İlk defa çalıştırıldığında scheduler'ı başlat
+    if context.job_queue.jobs() == []:
+        context.job_queue.run_repeating(
+            send_scheduled_recommendation,
+            interval=3 * 60 * 60,  # 3 saat = 3 * 60 * 60 saniye
+            first=0,
+            context=USER_ID
+        )
+        logger.info("Otomatik öneriler başlatıldı! (3 saatte bir)")
 
 async def film_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Film önerisi"""
@@ -176,7 +208,7 @@ async def send_scheduled_recommendation(context: ContextTypes.DEFAULT_TYPE):
             msg = format_movie_message(show, "Dizi")
         
         await context.bot.send_message(chat_id=chat_id, text=msg)
-        logger.info(f"Scheduled recommendation sent to {chat_id}")
+        logger.info(f"Otomatik öneri gönderildi! ({content_type})")
     except Exception as e:
         logger.error(f"Scheduled recommendation hatası: {e}")
 
