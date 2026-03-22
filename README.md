@@ -55,7 +55,7 @@ Bir hırsız, insanların rüyalarına girerek fikirler çalmayı
 
 ## 👨‍💻 Geliştirici
 
-[Eyüp Haner Dem](https://github.com/eyuphanerdem)
+[Han](https://github.com/eyuphanerdem)
 
 ## 📄 Lisans
 
