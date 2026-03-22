@@ -42,6 +42,18 @@ FILMLER = [
         'year': 1994,
         'rating': 9.3,
         'description': 'Bir adam, cezaevinde yaşadığı yıllarda dostluk ve umut bulur.'
+    },
+    {
+        'title': 'Interstellar',
+        'year': 2014,
+        'rating': 8.6,
+        'description': 'Astronotlar, insanlık için yeni bir ev aramak üzere bir siyah delik içinden seyahat eder.'
+    },
+    {
+        'title': 'The Matrix',
+        'year': 1999,
+        'rating': 8.7,
+        'description': 'Bir hacker gerçekliğin doğası ve insan özgürlüğü hakkında hakikat öğrenir.'
     }
 ]
 
@@ -75,6 +87,18 @@ DIZILER = [
         'year': 2010,
         'rating': 9.1,
         'description': 'Modern zamanda efsanevi dedektif Sherlock Holmes\'un macerası.'
+    },
+    {
+        'title': 'The Crown',
+        'year': 2016,
+        'rating': 8.6,
+        'description': 'İngiltere Kraliçesi Elizabeth II\'nin hayatı ve krallık dönemi.'
+    },
+    {
+        'title': 'Westworld',
+        'year': 2016,
+        'rating': 8.5,
+        'description': 'Yapay akıllı robotların olduğu bir tema parkında insanlar ve makineler çatışır.'
     }
 ]
 
@@ -106,6 +130,9 @@ def format_movie_message(movie, movie_type="Film"):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start komutu"""
+    user_id = update.effective_user.id
+    logger.info(f"User ID: {user_id}")
+    
     await update.message.reply_text(
         "🎬 Film/Dizi Önerisi Botu'na hoş geldiniz!\n\n"
         "/film - Günün film önerisi\n"
@@ -132,6 +159,26 @@ async def dizi_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Hata: {e}")
         await update.message.reply_text("Dizi önerisi alınırken hata oluştu!")
+
+async def send_scheduled_recommendation(context: ContextTypes.DEFAULT_TYPE):
+    """Her 3 saatte bir otomatik öneri gönder"""
+    try:
+        chat_id = context.job.context
+        
+        # Rastgele film veya dizi seç
+        content_type = random.choice(['film', 'dizi'])
+        
+        if content_type == 'film':
+            movie = get_random_film()
+            msg = format_movie_message(movie, "Film")
+        else:
+            show = get_random_dizi()
+            msg = format_movie_message(show, "Dizi")
+        
+        await context.bot.send_message(chat_id=chat_id, text=msg)
+        logger.info(f"Scheduled recommendation sent to {chat_id}")
+    except Exception as e:
+        logger.error(f"Scheduled recommendation hatası: {e}")
 
 if __name__ == '__main__':
     if not TOKEN:
