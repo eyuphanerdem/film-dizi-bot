@@ -53,13 +53,16 @@ async def get_exchange_rates():
     try:
         # Metals.live - Altın & Petrol
         async with aiohttp.ClientSession() as session:
+            # Altın (USD/oz olarak, grama çevireceğiz: 1 oz = 31.1035 gram)
             async with session.get('https://api.metals.live/v1/spot/gold', timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    gold_usd = data.get('gold')
-                    if isinstance(gold_usd, (int, float)) and isinstance(rates['usd_try'], (int, float)):
-                        rates['gold_try'] = gold_usd * rates['usd_try']
+                    gold_oz = data.get('gold')  # USD/oz
+                    if isinstance(gold_oz, (int, float)) and isinstance(rates['usd_try'], (int, float)):
+                        gold_gram_usd = gold_oz / 31.1035
+                        rates['gold_try'] = gold_gram_usd * rates['usd_try']
             
+            # Petrol (Brent Crude - USD/barrel)
             async with session.get('https://api.metals.live/v1/spot/oil', timeout=aiohttp.ClientTimeout(total=5)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
